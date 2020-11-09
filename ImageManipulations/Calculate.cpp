@@ -1,3 +1,4 @@
+#include "stdafx.h"
 #include "Calculate.h"
 
 void Calculate::SetInputPath(char* str)
