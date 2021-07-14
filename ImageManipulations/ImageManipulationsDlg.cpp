@@ -8,13 +8,15 @@
 #include "afxdialogex.h"
 #include <string>
 #include <fstream>
+#include "Params.h"
 using namespace std;
 
-#define FUNC_IMAGE_SHIFT 0
-#define FUNC_CHANNELS_CHANGE 1
-#define FUNC_ALPHA_CHANNEL_DELETE 2
-#define FUNC_DRAW_PALETTE 3
-#define FUNC_COUNT 4
+#define FUNC_IMAGE_SHIFT			0
+#define FUNC_CHANNELS_CHANGE		1
+#define FUNC_ALPHA_CHANNEL_DELETE	2
+#define FUNC_DRAW_PALETTE			3
+#define FUNC_CALIBR_INI				4
+#define FUNC_COUNT 5
 
 
 #ifdef _DEBUG
@@ -133,6 +135,8 @@ BOOL CImageManipulationsDlg::OnInitDialog()
 	
 	pCombo->AddString("Palette");
 
+	pCombo->AddString("calibr.ini");
+	
 	pCombo->SetCurSel(0);
 
 	ShowGroup(0);
@@ -336,6 +340,25 @@ void CImageManipulationsDlg::OnBnClickedCalc()
 				SetDlgItemText(IDC_INFO, "Palette calculateion error");
 			}
 		}
+	}
+	if (nType == FUNC_CALIBR_INI)
+	{
+		if (Params::bInited == false)
+		{
+			SetDlgItemText(IDC_INFO, "Calibr.Ini not initialized");
+			
+			return;
+		}
+		if (calc.GetDaInPlants() != 3 && calc.GetDaInPlants() != 1)
+		{
+			SetDlgItemText(IDC_INFO, "Invalid Plants, need 1 or 3 plants");
+
+			return;
+		}
+		
+		calc.AcceptCalibrIni();
+
+		SetDlgItemText(IDC_INFO, "Calibr.Ini accepted");
 	}
 
 }
