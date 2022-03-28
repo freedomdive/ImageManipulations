@@ -29,6 +29,12 @@ public:
 
 	int GetDaInPlants() const { return DaIn.Plants; }
 
+	int AcceptCalibrIni();
+
+	void AcceptCalibrIniOriginal(DataArea_t& DaOut);
+	
+	void AcceptCalibrIniOptimal(DataArea_t& DaOut);
+	
 private:
 	DataArea_t DaIn;
 

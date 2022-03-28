@@ -8,13 +8,15 @@
 #include "afxdialogex.h"
 #include <string>
 #include <fstream>
+#include "Params.h"
 using namespace std;
 
-#define FUNC_IMAGE_SHIFT 0
-#define FUNC_CHANNELS_CHANGE 1
-#define FUNC_ALPHA_CHANNEL_DELETE 2
-#define FUNC_DRAW_PALETTE 3
-#define FUNC_COUNT 4
+#define FUNC_IMAGE_SHIFT			0
+#define FUNC_CHANNELS_CHANGE		1
+#define FUNC_ALPHA_CHANNEL_DELETE	2
+#define FUNC_DRAW_PALETTE			3
+#define FUNC_CALIBR_INI				4
+#define FUNC_COUNT 5
 
 
 #ifdef _DEBUG
@@ -63,6 +65,9 @@ CImageManipulationsDlg::CImageManipulationsDlg(CWnd* pParent /*=nullptr*/)
 	: CDialogEx(IDD_IMAGEMANIPULATIONS_DIALOG, pParent)
 {
 	m_hIcon = AfxGetApp()->LoadIcon(IDR_MAINFRAME);
+
+	bExternalCalc = false;
+	nExternalType = 0;
 }
 
 void CImageManipulationsDlg::DoDataExchange(CDataExchange* pDX)
@@ -79,197 +84,8 @@ BEGIN_MESSAGE_MAP(CImageManipulationsDlg, CDialogEx)
 	ON_BN_CLICKED(IDC_R, &CImageManipulationsDlg::OnBnClickedR)
 	ON_BN_CLICKED(IDC_G, &CImageManipulationsDlg::OnBnClickedG)
 	ON_BN_CLICKED(IDC_B, &CImageManipulationsDlg::OnBnClickedB)
+	ON_BN_CLICKED(IDC_BUTTON1, &CImageManipulationsDlg::OnBnClickedButton1)
 END_MESSAGE_MAP()
-
-void imageHandler(char * in, char * out)
-{
-	DataArea_t Da;
-	DataAreaReadAlloc(&Da, in);
-
-	int width = Da.Cols;
-	int height = Da.Rows;
-	int Plants = Da.Plants;
-
-	PUCHAR SA = Da.StartAddress;
-
-	PUCHAR s = new UCHAR[width * height * Plants];
-
-	int R = 1;
-	
-	for (int y = 0; y < height; y++)
-	{
-		for (int x = 0; x < width; x++)
-		{
-			UCHAR MinColour = 255;
-			for (int dy = -R; dy <= R; dy++)
-			{
-				for (int dx = -R; dx <= R; dx++)
-				{
-					if (x + dx < 0 || x + dx >= width || y + dy < 0 || y + dy >= height)
-						continue;
-					int pix = SA[(y + dy)*Da.Offset + (x + dx)*Da.Plants];
-					MinColour = min(MinColour, pix);
-				}
-			}
-			int shift = y*Da.Offset + x*Da.Plants;
-			s[shift + 0] = MinColour;
-			s[shift + 1] = MinColour;
-			s[shift + 2] = MinColour;
-
-		}
-	}
-
-
-	Da.StartAddress = s;
-	DataAreaWrite(&Da, out);
-
-	Da.StartAddress = SA;
-	DataAreaDestroy(&Da);
-
-	delete[] s;
-}
-void savingHandler(int a, int b = 0)
-{
-
-	char inPath[256];
-	sprintf_s(inPath, 256, "D:\\work\\COMPAS\\_Nav\\4\\OCRB\\");
-
-	char outPath[256];
-	sprintf_s(outPath, 256, "D:\\work\\COMPAS\\_Nav\\4\\OCRBNew\\");
-
-	char imageInPath[256];
-	char imageOutPath[256];
-
-	if (b == 0)
-		b = a;
-
-	for (int i = a; i <= b; i++)
-	{
-		sprintf_s(imageInPath, 256, "%s%d.bmp", inPath, i);
-		sprintf_s(imageOutPath, 256, "%s%d.bmp", outPath, i);
-
-		imageHandler(imageInPath, imageOutPath);
-	}
-	
-}
-
-void dbgCalculation()
-{
-	savingHandler(48, 57);
-	savingHandler(60);
-	//savingHandler(47);
-	savingHandler(65, 90);
-
-}
-
-void dbgCalculation2()
-{
-	DataArea_t Da;
-
-	DataAreaReadAlloc(&Da, R"(D:\work\COMPAS\_Nav\4\1.png)");
-
-	int shift = 0;
-
-	int width = Da.Cols;
-	int height = Da.Rows;
-
-
-	int Hist[256];
-	memset(Hist, 0, sizeof(Hist));
-
-	for (int y = 0; y < height; y++)
-	{
-		for (int x = 0; x < width; x++)
-		{
-			Hist[Da.StartAddress[shift]]++;
-			shift++;
-		}
-	}
-
-	ofstream f(R"(D:\\work\COMPAS\_Nav\4\info.txt)");
-
-	for (int i = 0; i < 256; i++)
-	{
-		f << Hist[i] << endl;
-	}
-
-	int k1 = 0;
-	int k2 = 0;
-	for (int i = 0; i < 256; i++)
-	{
-		if (Hist[i] >= 10)
-		{
-			k1 = i;
-			break;
-		}
-	}
-	for (int i = 255; i >= 0; i--)
-	{
-		if (Hist[i] >= 10)
-		{
-			k2 = i;
-			break;
-		}
-	}
-
-	int maxValue1 = 0;
-	int maxIndex1 = 0;
-	int maxValue2 = 0;
-	int maxIndex2 = 0;
-
-	for (int i = k1; i <= (k1 + k2)/2; i++)
-	{
-		if (maxValue1 < Hist[i])
-		{
-			maxValue1 = Hist[i];
-			maxIndex1 = i;
-		}
-	}
-	for (int i = k2; i >= (k1 + k2)/2; i--)
-	{
-		if (maxValue2 < Hist[i])
-		{
-			maxValue2 = Hist[i];
-			maxIndex2 = i;
-		}
-	}
-
-	//f << maxIndex1 << endl;
-	//f << maxIndex2 << endl;
-
-
-	int minValue1 = maxValue2;
-	int minIndex1 = 0;
-
-	for (int i = maxIndex1; i <= maxIndex2; i++)
-	{
-		if (minValue1 > Hist[i])
-		{
-			
-			minValue1 = Hist[i];
-			minIndex1 = i;
-		}
-	}
-
-	//f << minIndex1 << endl;
-	f.close();
-
-
-	int border = minIndex1;
-	border = (maxIndex1 + maxIndex2) / 2;
-
-	shift = 0;
-	for (int y = 0; y < height; y++)
-	{
-		for (int x = 0; x < width; x++)
-		{
-			Da.StartAddress[shift] = Da.StartAddress[shift] > border ? 255 : 0;
-			shift++;
-		}
-	}
-
-	DataAreaWrite(&Da, R"(D:\work\COMPAS\_Nav\4\2.png)");
-}
 
 
 
@@ -307,9 +123,6 @@ BOOL CImageManipulationsDlg::OnInitDialog()
 	
 	//dbgCalculation2();
 
-	SetDlgItemText(IDC_EDIT_INPUT, _T("D:\\work\\COMPAS\\_Nav\\imageFronts94.png"));
-	
-	SetDlgItemText(IDC_EDIT_OUTPUT, _T("D:\\work\\COMPAS\\_Nav\\imageFronts94.png"));
 
 	SetDlgItemInt(IDC_EDIT_X, 0);
 	SetDlgItemInt(IDC_EDIT_Y, 0);
@@ -325,6 +138,8 @@ BOOL CImageManipulationsDlg::OnInitDialog()
 	
 	pCombo->AddString("Palette");
 
+	pCombo->AddString("calibr.ini");
+	
 	pCombo->SetCurSel(0);
 
 	ShowGroup(0);
@@ -337,7 +152,20 @@ BOOL CImageManipulationsDlg::OnInitDialog()
 	UpdateData(FALSE);
 	UpdateWindow();
 
+	//ForcedCalc(".\\Data\\ZFrame.png", ".\\Data\\ZFrame2.png");
+	
 	return TRUE;  // возврат значения TRUE, если фокус не передан элементу управления
+}
+
+void CImageManipulationsDlg::ForcedCalc(string InputPath, string OutputPath)
+{
+	calc.SetInputPath(const_cast<char*>(InputPath.c_str()));
+	calc.SetOutputPath(const_cast<char*>(OutputPath.c_str()));
+
+	bExternalCalc = true;
+	nExternalType = FUNC_CALIBR_INI;
+	
+	OnBnClickedCalc();
 }
 
 void CImageManipulationsDlg::OnSysCommand(UINT nID, LPARAM lParam)
@@ -393,15 +221,26 @@ HCURSOR CImageManipulationsDlg::OnQueryDragIcon()
 
 void CImageManipulationsDlg::OnBnClickedCalc()
 {
-	CString inputPath;
-	CString outputPath;
-	GetDlgItemText(IDC_EDIT_INPUT, inputPath);
-	GetDlgItemText(IDC_EDIT_OUTPUT, outputPath);
+	if (bExternalCalc == false)
+	{
+
+		CFileDialog FileDialog(FALSE, 0, "");
+
+		auto nResult = FileDialog.DoModal();
 
 
-	calc.SetInputPath(const_cast<char *>(static_cast<LPCSTR>(inputPath)));
-	calc.SetOutputPath(const_cast<char *>(static_cast<LPCSTR>(outputPath)));
+		if (nResult == IDOK)
+		{
+			CString sFileName = FileDialog.GetPathName();
 
+			calc.SetOutputPath(const_cast<char*>(static_cast<LPCSTR>(sFileName)));
+		}
+		else
+		{
+			return;
+		}
+
+	}
 
 	if (calc.LoadInputImage() != 0)
 	{
@@ -413,7 +252,7 @@ void CImageManipulationsDlg::OnBnClickedCalc()
 
 	CComboBox * pCombo = static_cast<CComboBox *>(GetDlgItem(IDC_COMBO1));
 
-	int nType = pCombo->GetCurSel();
+	int nType = bExternalCalc ? nExternalType : pCombo->GetCurSel();
 
 	if (nType == FUNC_IMAGE_SHIFT)
 	{
@@ -520,6 +359,32 @@ void CImageManipulationsDlg::OnBnClickedCalc()
 			}
 		}
 	}
+	if (nType == FUNC_CALIBR_INI)
+	{
+		if (Params::bInited == false)
+		{
+			SetDlgItemText(IDC_INFO, "Calibr.Ini not initialized");
+			
+			return;
+		}
+		if (calc.GetDaInPlants() != 3 && calc.GetDaInPlants() != 1)
+		{
+			SetDlgItemText(IDC_INFO, "Invalid Plants, need 1 or 3 plants");
+
+			return;
+		}
+		
+		auto nRet = calc.AcceptCalibrIni();
+
+		if (bExternalCalc == false)
+			SetDlgItemText(IDC_INFO, "Calibr.Ini accepted");
+		if (bExternalCalc == true)
+		{
+			string sOutString = to_string(nRet);
+			
+			SetDlgItemText(IDC_INFO, sOutString.c_str());
+		}
+	}
 
 }
 
@@ -609,4 +474,22 @@ void CImageManipulationsDlg::OnBnClickedB()
 	pButton = (CButton*)GetDlgItem(IDC_G);
 
 	pButton->SetCheck(false);
+}
+
+
+void CImageManipulationsDlg::OnBnClickedButton1()
+{
+	CFileDialog FileDialog(TRUE, 0, "*.*");
+
+	auto nResult = FileDialog.DoModal();
+
+	
+	if (nResult == IDOK)
+	{
+		CString sFileName = FileDialog.GetPathName();
+		SetDlgItemText(IDC_EDIT_INPUT, sFileName);
+
+		calc.SetInputPath(const_cast<char*>(static_cast<LPCSTR>(sFileName)));
+	}
+	
 }

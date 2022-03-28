@@ -3,6 +3,7 @@
 //
 
 #include "Calculate.h"
+#include <string>
 
 #pragma once
 
@@ -27,6 +28,9 @@ public:
 protected:
 	HICON m_hIcon;
 
+	bool bExternalCalc;
+	int nExternalType;
+	
 	// Созданные функции схемы сообщений
 	virtual BOOL OnInitDialog();
 	afx_msg void OnSysCommand(UINT nID, LPARAM lParam);
@@ -39,9 +43,12 @@ public:
 	Calculate calc;
 	afx_msg void OnCbnSelchangeCombo1();
 
+	void ForcedCalc(std::string InputPath, std::string OutputPath);
+	
 	void ShowGroup(int);
 	void SetGroupVisible(int nType, int);
 	afx_msg void OnBnClickedR();
 	afx_msg void OnBnClickedG();
 	afx_msg void OnBnClickedB();
+	afx_msg void OnBnClickedButton1();
 };
