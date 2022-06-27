@@ -2,7 +2,7 @@
 // ImageManipulationsDlg.h: файл заголовка
 //
 
-#include "Calculate.h"
+#include "Math.h"
 #include <string>
 
 #pragma once
@@ -28,9 +28,14 @@ public:
 protected:
 	HICON m_hIcon;
 
-	bool bExternalCalc;
-	int nExternalType;
-	
+	bool bImageValid = false;
+
+	std::string sInputDirectory;
+	std::string sInputPath;
+	std::string sOutputPath;
+
+	void f();
+
 	// Созданные функции схемы сообщений
 	virtual BOOL OnInitDialog();
 	afx_msg void OnSysCommand(UINT nID, LPARAM lParam);
@@ -40,15 +45,13 @@ protected:
 public:
 	afx_msg void OnBnClickedCalc();
 
-	Calculate calc;
 	afx_msg void OnCbnSelchangeCombo1();
 
-	void ForcedCalc(std::string InputPath, std::string OutputPath);
 	
 	void ShowGroup(int);
 	void SetGroupVisible(int nType, int);
 	afx_msg void OnBnClickedR();
 	afx_msg void OnBnClickedG();
 	afx_msg void OnBnClickedB();
-	afx_msg void OnBnClickedButton1();
+	afx_msg void OnBnClickedOpen();
 };

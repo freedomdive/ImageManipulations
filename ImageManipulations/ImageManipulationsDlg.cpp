@@ -5,6 +5,9 @@
 #include "stdafx.h"
 #include "ImageManipulations.h"
 #include "ImageManipulationsDlg.h"
+
+#include <filesystem>
+
 #include "afxdialogex.h"
 #include <string>
 #include <fstream>
@@ -16,7 +19,9 @@ using namespace std;
 #define FUNC_ALPHA_CHANNEL_DELETE	2
 #define FUNC_DRAW_PALETTE			3
 #define FUNC_CALIBR_INI				4
-#define FUNC_COUNT 5
+#define FUNC_REFORMAT_ALL			5
+#define FUNC_SCALE					6
+#define FUNC_COUNT					7
 
 
 #ifdef _DEBUG
@@ -66,8 +71,6 @@ CImageManipulationsDlg::CImageManipulationsDlg(CWnd* pParent /*=nullptr*/)
 {
 	m_hIcon = AfxGetApp()->LoadIcon(IDR_MAINFRAME);
 
-	bExternalCalc = false;
-	nExternalType = 0;
 }
 
 void CImageManipulationsDlg::DoDataExchange(CDataExchange* pDX)
@@ -84,7 +87,7 @@ BEGIN_MESSAGE_MAP(CImageManipulationsDlg, CDialogEx)
 	ON_BN_CLICKED(IDC_R, &CImageManipulationsDlg::OnBnClickedR)
 	ON_BN_CLICKED(IDC_G, &CImageManipulationsDlg::OnBnClickedG)
 	ON_BN_CLICKED(IDC_B, &CImageManipulationsDlg::OnBnClickedB)
-	ON_BN_CLICKED(IDC_BUTTON1, &CImageManipulationsDlg::OnBnClickedButton1)
+	ON_BN_CLICKED(IDC_BUTTON1, &CImageManipulationsDlg::OnBnClickedOpen)
 END_MESSAGE_MAP()
 
 
@@ -139,11 +142,16 @@ BOOL CImageManipulationsDlg::OnInitDialog()
 	pCombo->AddString("Palette");
 
 	pCombo->AddString("calibr.ini");
+
+	pCombo->AddString("Reformat all");
+
+	pCombo->AddString("Scale");
 	
 	pCombo->SetCurSel(0);
 
 	ShowGroup(0);
 
+	bImageValid = false;
 
 	CButton* pButtonR = (CButton*)GetDlgItem(IDC_R);
 
@@ -152,20 +160,25 @@ BOOL CImageManipulationsDlg::OnInitDialog()
 	UpdateData(FALSE);
 	UpdateWindow();
 
-	//ForcedCalc(".\\Data\\ZFrame.png", ".\\Data\\ZFrame2.png");
-	
 	return TRUE;  // возврат значения TRUE, если фокус не передан элементу управления
 }
 
-void CImageManipulationsDlg::ForcedCalc(string InputPath, string OutputPath)
-{
-	calc.SetInputPath(const_cast<char*>(InputPath.c_str()));
-	calc.SetOutputPath(const_cast<char*>(OutputPath.c_str()));
 
-	bExternalCalc = true;
-	nExternalType = FUNC_CALIBR_INI;
-	
-	OnBnClickedCalc();
+void CImageManipulationsDlg::f()
+{
+	Math::pDaIn.Read("D:/source/repos/Projects/ColourLayersAutoGUI/x64/Release/123/100/SampleCL_Algo_CLResult.png");
+
+	//ImageArea pDa = Math::CalcPalette();
+
+	//pDa.Write("D:/source/repos/Projects/ColourLayersAutoGUI/x64/Release/123/100/SampleCL_Palette.png");
+
+	ImageArea pDa = Math::ScaleImage(2000, 1000, false);
+
+	//Math::pDaIn = pDa;
+
+	//pDa = Math::CalcPalette();
+
+	pDa.Write("D:/source/repos/Projects/ColourLayersAutoGUI/x64/Release/123/100/SampleCL_Algo_CLResult_.png");
 }
 
 void CImageManipulationsDlg::OnSysCommand(UINT nID, LPARAM lParam)
@@ -219,175 +232,6 @@ HCURSOR CImageManipulationsDlg::OnQueryDragIcon()
 
 
 
-void CImageManipulationsDlg::OnBnClickedCalc()
-{
-	if (bExternalCalc == false)
-	{
-
-		CFileDialog FileDialog(FALSE, 0, "");
-
-		auto nResult = FileDialog.DoModal();
-
-
-		if (nResult == IDOK)
-		{
-			CString sFileName = FileDialog.GetPathName();
-
-			calc.SetOutputPath(const_cast<char*>(static_cast<LPCSTR>(sFileName)));
-		}
-		else
-		{
-			return;
-		}
-
-	}
-
-	if (calc.LoadInputImage() != 0)
-	{
-		SetDlgItemText(IDC_INFO, "No such input image");
-		return;
-	}
-
-	char szBuffer[256];
-
-	CComboBox * pCombo = static_cast<CComboBox *>(GetDlgItem(IDC_COMBO1));
-
-	int nType = bExternalCalc ? nExternalType : pCombo->GetCurSel();
-
-	if (nType == FUNC_IMAGE_SHIFT)
-	{
-
-		int shiftX = GetDlgItemInt(IDC_EDIT_X);
-		int shiftY = GetDlgItemInt(IDC_EDIT_Y);
-
-		if (calc.shiftImages(shiftX, shiftY) == 0)
-		{
-			if (shiftX == 0 && shiftY == 0)
-				SetDlgItemText(IDC_INFO, "Zero shift done");
-			else
-				SetDlgItemText(IDC_INFO, "Shift done");
-		}
-		else
-		{
-			SetDlgItemText(IDC_INFO, "Shift error");
-		}
-	}
-	if (nType == FUNC_CHANNELS_CHANGE)
-	{
-		int nPlant = 0;
-
-		if (IsDlgButtonChecked(IDC_R))
-			nPlant = 0;
-		if (IsDlgButtonChecked(IDC_G))
-			nPlant = 1;
-		if (IsDlgButtonChecked(IDC_B))
-			nPlant = 2;
-		
-		if (calc.make_3_1_converting(nPlant) == 0)
-		{
-			int nInPlant = calc.GetDaInPlants();
-			if (nInPlant == 1)
-			{
-				SetDlgItemText(IDC_INFO, "Transformation 1 -> 3 done");
-			}
-			if (nInPlant == 3)
-			{
-				if (nPlant == 0)
-				{
-					SetDlgItemText(IDC_INFO, "Transformation 3 -> 1 done via Red plant");
-				}
-				if (nPlant == 1)
-				{
-					SetDlgItemText(IDC_INFO, "Transformation 3 -> 1 done via Green plant");
-				}
-				if (nPlant == 2)
-				{
-					SetDlgItemText(IDC_INFO, "Transformation 3 -> 1 done via Blue plant");
-				}
-			}
-			if (nInPlant != 1 && nInPlant != 3)
-			{
-				
-				sprintf_s(szBuffer, 256, "Transformation error, Input Image Plants = %d", nInPlant);
-				SetDlgItemText(IDC_INFO, szBuffer);
-			}
-		}
-		else
-		{
-			SetDlgItemText(IDC_INFO, "Transformation error");
-		}
-
-	}
-	if (nType == FUNC_ALPHA_CHANNEL_DELETE)
-	{
-		int nInPlant = calc.GetDaInPlants();
-
-		if (nInPlant != 4)
-		{
-			sprintf_s(szBuffer, 256, "Image does not have alpha channel, nPlants = %d", nInPlant);
-			SetDlgItemText(IDC_INFO, szBuffer);
-		}
-		else
-		{
-			if (calc.alphaChannelDelete() == 0)
-			{
-				SetDlgItemText(IDC_INFO, "Alpha channel deleting done");
-			}
-			else
-			{
-				SetDlgItemText(IDC_INFO, "Alpha channel deleting error");
-			}
-		}
-	}
-	if (nType == FUNC_DRAW_PALETTE)
-	{
-		int nInPlant = calc.GetDaInPlants();
-
-		if (nInPlant != 1)
-		{
-			SetDlgItemText(IDC_INFO, "Image must have 1 plant");
-		}
-		else
-		{
-			if (calc.calcPalette() == 0)
-			{
-				SetDlgItemText(IDC_INFO, "Palette calculateion done");
-			}
-			else
-			{
-				SetDlgItemText(IDC_INFO, "Palette calculateion error");
-			}
-		}
-	}
-	if (nType == FUNC_CALIBR_INI)
-	{
-		if (Params::bInited == false)
-		{
-			SetDlgItemText(IDC_INFO, "Calibr.Ini not initialized");
-			
-			return;
-		}
-		if (calc.GetDaInPlants() != 3 && calc.GetDaInPlants() != 1)
-		{
-			SetDlgItemText(IDC_INFO, "Invalid Plants, need 1 or 3 plants");
-
-			return;
-		}
-		
-		auto nRet = calc.AcceptCalibrIni();
-
-		if (bExternalCalc == false)
-			SetDlgItemText(IDC_INFO, "Calibr.Ini accepted");
-		if (bExternalCalc == true)
-		{
-			string sOutString = to_string(nRet);
-			
-			SetDlgItemText(IDC_INFO, sOutString.c_str());
-		}
-	}
-
-}
-
 
 void CImageManipulationsDlg::ShowGroup(int nType)
 {
@@ -428,6 +272,25 @@ void CImageManipulationsDlg::SetGroupVisible(int nType, int nCmdShow)
 
 		wnd = GetDlgItem(IDC_B);
 		wnd->ShowWindow(nCmdShow);
+	}
+	if (nType == FUNC_REFORMAT_ALL)
+	{
+		GetDlgItem(IDC_STATIC_FORMAT)->ShowWindow(nCmdShow);
+		GetDlgItem(IDC_FORMAT_FROM_)->ShowWindow(nCmdShow);
+		GetDlgItem(IDC_FORMAT_TO_)->ShowWindow(nCmdShow);
+	}
+	if (nType == FUNC_SCALE)
+	{
+		GetDlgItem(IDC_WIDTH_IN)->ShowWindow(nCmdShow);
+		GetDlgItem(IDC_WIDTH_OUT)->ShowWindow(nCmdShow);
+
+		GetDlgItem(IDC_HEIGHT_IN)->ShowWindow(nCmdShow);
+		GetDlgItem(IDC_HEIGHT_OUT)->ShowWindow(nCmdShow);
+
+		GetDlgItem(IDC_STATIC_FORMAT2)->ShowWindow(nCmdShow);
+
+		GetDlgItem(IDC_IS_INDEXED)->ShowWindow(nCmdShow);
+		
 	}
 }
 
@@ -477,19 +340,273 @@ void CImageManipulationsDlg::OnBnClickedB()
 }
 
 
-void CImageManipulationsDlg::OnBnClickedButton1()
+void CImageManipulationsDlg::OnBnClickedOpen()
 {
-	CFileDialog FileDialog(TRUE, 0, "*.*");
+	CComboBox* pCombo = static_cast<CComboBox*>(GetDlgItem(IDC_COMBO1));
 
-	auto nResult = FileDialog.DoModal();
+	int nType = pCombo->GetCurSel();
 
-	
-	if (nResult == IDOK)
+	if (nType == FUNC_REFORMAT_ALL)
 	{
-		CString sFileName = FileDialog.GetPathName();
-		SetDlgItemText(IDC_EDIT_INPUT, sFileName);
 
-		calc.SetInputPath(const_cast<char*>(static_cast<LPCSTR>(sFileName)));
+		CFolderPickerDialog folderPickerDialog("", OFN_FILEMUSTEXIST | OFN_ALLOWMULTISELECT | OFN_ENABLESIZING, this,
+			sizeof(OPENFILENAME));
+
+		auto nResult1 = folderPickerDialog.DoModal();
+
+		if (nResult1 == IDOK)
+		{
+			sInputDirectory = folderPickerDialog.GetPathName();
+
+		}
 	}
-	
+	else
+	{
+		CFileDialog FileDialog(TRUE, 0, "*.*");
+
+		auto nResult = FileDialog.DoModal();
+
+
+		if (nResult == IDOK)
+		{
+			sInputPath = FileDialog.GetPathName();
+			SetDlgItemText(IDC_EDIT_INPUT, sInputPath.c_str());
+
+			if (Math::pDaIn.Read(sInputPath.c_str()) != 0)
+			{
+				SetDlgItemText(IDC_INFO, "No such input image");
+
+				bImageValid = false;
+
+				return;
+			}
+
+			bImageValid = true;
+
+			if (nType == FUNC_SCALE)
+			{
+				CString sWidth;
+				sWidth.Format("%d", Math::pDaIn.nWidth);
+
+				CString sHeight;
+				sHeight.Format("%d", Math::pDaIn.nHeight);
+
+				SetDlgItemText(IDC_WIDTH_IN, sWidth);
+				SetDlgItemText(IDC_HEIGHT_IN, sHeight);
+			}
+			//IDC_IS_INDEXED
+		}
+	}
+
+}
+
+void CImageManipulationsDlg::OnBnClickedCalc()
+{
+
+	CComboBox* pCombo = static_cast<CComboBox*>(GetDlgItem(IDC_COMBO1));
+
+	const auto nType = pCombo->GetCurSel();
+
+	if (nType != FUNC_REFORMAT_ALL)
+	{
+		CFileDialog FileDialog(FALSE, 0, "");
+
+		auto nResult = FileDialog.DoModal();
+
+		if (nResult == IDOK)
+		{
+			sOutputPath = FileDialog.GetPathName();
+		}
+		else
+		{
+			return;
+		}
+	}
+
+	if (bImageValid == false && nType != FUNC_REFORMAT_ALL)
+	{
+		SetDlgItemText(IDC_INFO, "No such input image");
+		return;
+	}
+
+	char szBuffer[256];
+
+	ImageArea pDa;
+
+	if (nType == FUNC_IMAGE_SHIFT)
+	{
+
+		int shiftX = GetDlgItemInt(IDC_EDIT_X);
+		int shiftY = GetDlgItemInt(IDC_EDIT_Y);
+
+		pDa = Math::ShiftImages(shiftX, shiftY);
+
+		if (shiftX == 0 && shiftY == 0)
+			SetDlgItemText(IDC_INFO, "Zero shift done");
+		else
+			SetDlgItemText(IDC_INFO, "Shift done");
+		
+
+	}
+	if (nType == FUNC_CHANNELS_CHANGE)
+	{
+		int nPlant = 0;
+
+		if (IsDlgButtonChecked(IDC_R))
+			nPlant = 0;
+		if (IsDlgButtonChecked(IDC_G))
+			nPlant = 1;
+		if (IsDlgButtonChecked(IDC_B))
+			nPlant = 2;
+
+		pDa = Math::Make_3_1_Converting(nPlant);
+
+		
+		const int nInPlant = Math::pDaIn.nPlants;
+
+		if (nInPlant == 1)
+		{
+			SetDlgItemText(IDC_INFO, "Transformation 1 -> 3 done");
+		}
+		if (nInPlant == 3)
+		{
+			if (nPlant == 0)
+			{
+				SetDlgItemText(IDC_INFO, "Transformation 3 -> 1 done via Red plant");
+			}
+			if (nPlant == 1)
+			{
+				SetDlgItemText(IDC_INFO, "Transformation 3 -> 1 done via Green plant");
+			}
+			if (nPlant == 2)
+			{
+				SetDlgItemText(IDC_INFO, "Transformation 3 -> 1 done via Blue plant");
+			}
+		}
+		if (nInPlant != 1 && nInPlant != 3)
+		{
+
+			sprintf_s(szBuffer, 256, "Transformation error, Input Image Plants = %d", nInPlant);
+			SetDlgItemText(IDC_INFO, szBuffer);
+
+			return;
+		}
+		
+
+	}
+	if (nType == FUNC_ALPHA_CHANNEL_DELETE)
+	{
+		if (Math::pDaIn.nPlants != 4)
+		{
+			sprintf_s(szBuffer, 256, "Image does not have alpha channel, nPlants = %d", Math::pDaIn.nPlants);
+			SetDlgItemText(IDC_INFO, szBuffer);
+		}
+		else
+		{
+			pDa = Math::AlphaChannelDelete();
+
+			SetDlgItemText(IDC_INFO, "Alpha channel deleting done");
+		}
+	}
+	if (nType == FUNC_DRAW_PALETTE)
+	{
+		if (Math::pDaIn.nPlants != 1)
+		{
+			SetDlgItemText(IDC_INFO, "Image must have 1 plant");
+
+			return;
+		}
+		else
+		{
+			pDa = Math::CalcPalette();
+
+			SetDlgItemText(IDC_INFO, "Palette calculateion done");
+		}
+	}
+	if (nType == FUNC_CALIBR_INI)
+	{
+		if (Params::bInited == false)
+		{
+			SetDlgItemText(IDC_INFO, "Calibr.Ini not initialized");
+
+			return;
+		}
+		if (Math::pDaIn.nPlants != 3 && Math::pDaIn.nPlants != 1)
+		{
+			SetDlgItemText(IDC_INFO, "Invalid Plants, need 1 or 3 plants");
+
+			return;
+		}
+
+		pDa = Math::AcceptCalibrIni();
+
+
+		SetDlgItemText(IDC_INFO, "Calibr.Ini accepted");
+	}
+
+	if (nType == FUNC_REFORMAT_ALL)
+	{
+		CString sFormatFrom;
+		CString sFormatTo;
+
+		GetDlgItemText(IDC_FORMAT_FROM_, sFormatFrom);
+		GetDlgItemText(IDC_FORMAT_TO_, sFormatTo);
+
+		if (std::filesystem::exists(sInputDirectory) == false)
+		{
+			SetDlgItemText(IDC_INFO, "No such folder");
+
+			return;
+		}
+
+		if (sFormatFrom.GetLength() == 0 || sFormatTo.GetLength() == 0)
+		{
+			SetDlgItemText(IDC_INFO, "Set image formats");
+
+			return;
+		}
+
+
+		int nCount = Math::ReFormatImages(sInputDirectory, const_cast<char*>(static_cast<LPCSTR>(sFormatFrom)), const_cast<char*>(static_cast<LPCSTR>(sFormatTo)));
+
+		string str = "Reformed ";
+
+		str += to_string(nCount);
+
+		str += " images";
+
+		SetDlgItemText(IDC_INFO, str.c_str());
+	}
+
+	if (nType == FUNC_SCALE)
+	{
+		CString str;
+
+		int nWidth = GetDlgItemInt(IDC_WIDTH_OUT);
+		int nHeight = GetDlgItemInt(IDC_HEIGHT_OUT);
+
+		bool bIndexed = ((CButton*)GetDlgItem(IDC_IS_INDEXED))->GetCheck();
+
+
+
+		if (nWidth <= 0 || nHeight <= 0 || Math::pDaIn.nPlants > 1 && bIndexed)
+		{
+			SetDlgItemText(IDC_INFO, "Incorrect intput values");
+
+			return;
+		}
+
+		pDa = Math::ScaleImage(nWidth, nHeight, bIndexed);
+
+		SetDlgItemText(IDC_INFO, "Scaling finished");
+	}
+
+
+	if (nType != FUNC_REFORMAT_ALL)
+	{
+		if (pDa.Write(sOutputPath.c_str()) != ImageArea::OK)
+		{
+			SetDlgItemText(IDC_INFO, "Error saving image");
+		}
+	}
 }
