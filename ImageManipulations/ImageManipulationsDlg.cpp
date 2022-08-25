@@ -160,6 +160,11 @@ BOOL CImageManipulationsDlg::OnInitDialog()
 	UpdateData(FALSE);
 	UpdateWindow();
 
+
+	CButton* p = (CButton*)GetDlgItem(IDC_IS_INDEXED);
+
+	p->SetCheck(true);
+
 	return TRUE;  // возврат значения TRUE, если фокус не передан элементу управления
 }
 
@@ -383,7 +388,7 @@ void CImageManipulationsDlg::OnBnClickedOpen()
 
 			bImageValid = true;
 
-			if (nType == FUNC_SCALE)
+			//if (nType == FUNC_SCALE)
 			{
 				CString sWidth;
 				sWidth.Format("%d", Math::pDaIn.nWidth);
