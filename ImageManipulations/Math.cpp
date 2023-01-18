@@ -858,7 +858,7 @@ int Math::GetScaledIndexedPixel(ImageArea& pDa, double fStartX, double fEndX, do
 	double nMaxFrequancy = 0.0;
 	int iMaxIndex = 0;
 
-	int nCount = 0;
+	double nCount = 0;
 
 	for (auto& it : mFrequancy)
 	{
