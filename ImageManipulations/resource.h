@@ -32,6 +32,8 @@
 #define IDC_WIDTH_OUT                   1025
 #define IDC_CHECK1                      1026
 #define IDC_IS_INDEXED                  1026
+#define IDC_IS_INDEXED2                 1027
+#define IDC_IS_CENTER                   1027
 
 // Next default values for new objects
 // 

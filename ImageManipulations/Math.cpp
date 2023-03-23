@@ -578,7 +578,7 @@ int Math::ReFormatImages(const string& sInputDirectory, const std::string& sForm
 	return nCount;
 }
 
-ImageArea Math::ScaleImage(const int nWidth, const int nHeight, const bool bIndexed)
+ImageArea Math::ScaleImage(const int nWidth, const int nHeight, const bool bIndexed, bool bCenter)
 {
 	Prophile pProphile;
 
@@ -596,30 +596,30 @@ ImageArea Math::ScaleImage(const int nWidth, const int nHeight, const bool bInde
 
 			pFake.fProphile[0] = nHeight;
 
-			pDaOut = ScaleImageIndexed(pDaIn, nWidth, nHeight, static_cast<double>(pDaIn.nWidth) / nWidth, pDaIn.nHeight, pFake);
+			pDaOut = ScaleImageIndexed(pDaIn, nWidth, nHeight, static_cast<double>(pDaIn.nWidth) / nWidth, pDaIn.nHeight, pFake, bCenter);
 		}
 		if (Params::GetProfile().nType == 1)
 		{
-			pDaOut = ScaleImageIndexed(pDaIn, nWidth, nHeight, Params::GetProfile().Kx_Orig / Params::GetProfile().Kx_Result, Params::GetProfile().Ky_Orig, pProphile);
+			pDaOut = ScaleImageIndexed(pDaIn, nWidth, nHeight, Params::GetProfile().Kx_Orig / Params::GetProfile().Kx_Result, Params::GetProfile().Ky_Orig, pProphile, bCenter);
 		}
 		if (Params::GetProfile().nType == 2)
 		{
 			pDaOut = FormMiddleIndexes(pDaIn, Params::GetProfile().nRad);
 
-			pDaOut = ScaleImageNotIndexed(pDaOut, nWidth, nHeight, Params::GetProfile().Kx_Orig / Params::GetProfile().Kx_Result, Params::GetProfile().Ky_Orig, pProphile);
+			pDaOut = ScaleImageNotIndexed(pDaOut, nWidth, nHeight, Params::GetProfile().Kx_Orig / Params::GetProfile().Kx_Result, Params::GetProfile().Ky_Orig, pProphile, bCenter);
 		}
 		if (Params::GetProfile().nType == 3)
 		{
 			
-			pDaOut = ScaleImageNotIndexed(pDaIn, nWidth, nHeight, Params::GetProfile().Kx_Orig / Params::GetProfile().Kx_Result, Params::GetProfile().Ky_Orig, pProphile);
+			pDaOut = ScaleImageNotIndexed(pDaIn, nWidth, nHeight, Params::GetProfile().Kx_Orig / Params::GetProfile().Kx_Result, Params::GetProfile().Ky_Orig, pProphile, bCenter);
 
 			pDaOut = FormMiddleIndexes(pDaOut, Params::GetProfile().nRad);
 		}
-
+		
 	}
 	else
 	{
-		pDaOut = ScaleImageNotIndexed(pDaIn, nWidth, nHeight, Params::GetProfile().Kx_Orig / Params::GetProfile().Kx_Result, Params::GetProfile().Ky_Orig, pProphile);
+		pDaOut = ScaleImageNotIndexed(pDaIn, nWidth, nHeight, Params::GetProfile().Kx_Orig / Params::GetProfile().Kx_Result, Params::GetProfile().Ky_Orig, pProphile, bCenter);
 	}
 	
 	return pDaOut;
@@ -693,11 +693,11 @@ RGB Math::GetScaledPixel(ImageArea& pDa, double fStartX, double fEndX, double fS
 }
 
 //ѕростое снижение
-ImageArea Math::ScaleImageNotIndexed(ImageArea& pDaIn, const int nWidth, const int nHeight, const double Cx, const double CyOrig, Prophile& pProphile)
+ImageArea Math::ScaleImageNotIndexed(ImageArea& pDaIn, const int nWidth, const int nHeight, const double Cx, const double CyOrig, Prophile& pProphile, bool bCenter)
 {
 	ImageArea pDaOut(nWidth, nHeight, pDaIn.nPlants);
 
-	//const double fStepX = static_cast<double>(pDaIn.nWidth) / pDaOut.nWidth;
+	//const double image_scale_x = static_cast<double>(pDaIn.nWidth) / pDaOut.nWidth;
 	//const double fStepY = static_cast<double>(pDaIn.nHeight) / pDaOut.nHeight;
 
 	const double fStepX = Cx;
@@ -708,10 +708,12 @@ ImageArea Math::ScaleImageNotIndexed(ImageArea& pDaIn, const int nWidth, const i
 
 	double YOrig = 0;
 
-	for (int y = 0; y < pDaOut.nHeight; y++)
-	{
-		double XOrig = 0;
+	double Cy = 0.0;
 
+	int count = 0;
+
+	for (int y = 0; y < pDaOut.nHeight; y++)
+	{	
 		if (pProphile.bInited)
 		{
 			for (auto& it : pProphile.fProphile)
@@ -722,6 +724,11 @@ ImageArea Math::ScaleImageNotIndexed(ImageArea& pDaIn, const int nWidth, const i
 				}
 			}
 		}
+
+		Cy += fStepY;
+		count++;
+
+		double XOrig = 0;
 
 		for (int x = 0; x < pDaOut.nWidth; x++)
 		{
@@ -767,8 +774,53 @@ ImageArea Math::ScaleImageNotIndexed(ImageArea& pDaIn, const int nWidth, const i
 			pDaOut.IncX(iShift);
 		}
 
+		
+
 		YOrig += fStepY;
 	}
+
+	
+
+	//надо сдвинуть изображени€:
+
+	auto shift_images = [&pDaOut](int shiftX, int shiftY)
+	{
+		ImageArea pDaIn = pDaOut;
+
+		pDaIn.DeepCopyFrom(pDaOut);
+
+		pDaOut.pBuffer = make_shared<unsigned char[]>(pDaIn.nOffset * pDaIn.nHeight);
+
+		int shift = 0;
+
+		for (int y = 0; y < pDaIn.nHeight; y++)
+		{
+			for (int x = 0; x < pDaIn.nWidth; x++)
+			{
+				if (x - shiftX >= 0 && x - shiftX < pDaIn.nWidth && y - shiftY >= 0 && y - shiftY < pDaIn.nHeight)
+				{
+					for (int p = 0; p < pDaIn.nPlants; p++)
+					{
+						pDaOut.pBuffer[shift + p] = pDaIn.pBuffer[shift - shiftX * pDaIn.nPlants - pDaIn.nOffset * shiftY + p];
+					}
+				}
+				shift += pDaIn.nPlants;
+			}
+		}
+	};
+
+	if (bCenter)
+	{
+		if (count)
+			Cy /= count;
+
+		int shiftX = lround((double)pDaOut.nWidth / 2 - ((double)pDaIn.nWidth / Cx) / 2);
+
+		int shiftY = count > 0 ? lround((double)pDaOut.nHeight / 2 - ((double)pDaIn.nHeight / Cy) / 2) : 0;
+
+		shift_images(shiftX, shiftY);
+	}
+
 
 	return pDaOut;
 }
@@ -907,7 +959,7 @@ int Math::GetScaledIndexedPixel(ImageArea& pDa, double fStartX, double fEndX, do
 }
 
 
-ImageArea Math::ScaleImageIndexed(ImageArea& pDaIn, const int nWidth, const int nHeight, const double Cx, const double CyOrig, Prophile& pProphile)
+ImageArea Math::ScaleImageIndexed(ImageArea& pDaIn, const int nWidth, const int nHeight, const double Cx, const double CyOrig, Prophile& pProphile, bool bCenter)
 {
 	ImageArea pDaOut(nWidth, nHeight, 1);
 
@@ -921,6 +973,10 @@ ImageArea Math::ScaleImageIndexed(ImageArea& pDaIn, const int nWidth, const int 
 	int iShift = 0;
 
 	double YOrig = 0;
+
+	double Cy = 0.0;
+
+	int count = 0;
 
 	for (int y = 0; y < pDaOut.nHeight; y++)
 	{
@@ -937,6 +993,8 @@ ImageArea Math::ScaleImageIndexed(ImageArea& pDaIn, const int nWidth, const int 
 			}
 		}
 
+		Cy += fStepY;
+
 		for (int x = 0; x < pDaOut.nWidth; x++)
 		{
 			const auto iIndex = GetScaledIndexedPixel(pDaIn, XOrig, XOrig + fStepX, YOrig, YOrig + fStepY);
@@ -948,6 +1006,45 @@ ImageArea Math::ScaleImageIndexed(ImageArea& pDaIn, const int nWidth, const int 
 		}
 
 		YOrig += fStepY;
+	}
+
+
+	auto shift_images = [&pDaOut](int shiftX, int shiftY)
+	{
+		ImageArea pDaIn = pDaOut;
+
+		pDaIn.DeepCopyFrom(pDaOut);
+
+		pDaOut.pBuffer = make_shared<unsigned char[]>(pDaIn.nOffset * pDaIn.nHeight);
+
+		int shift = 0;
+
+		for (int y = 0; y < pDaIn.nHeight; y++)
+		{
+			for (int x = 0; x < pDaIn.nWidth; x++)
+			{
+				if (x - shiftX >= 0 && x - shiftX < pDaIn.nWidth && y - shiftY >= 0 && y - shiftY < pDaIn.nHeight)
+				{
+					for (int p = 0; p < pDaIn.nPlants; p++)
+					{
+						pDaOut.pBuffer[shift + p] = pDaIn.pBuffer[shift - shiftX * pDaIn.nPlants - pDaIn.nOffset * shiftY + p];
+					}
+				}
+				shift += pDaIn.nPlants;
+			}
+		}
+	};
+
+	if (bCenter)
+	{
+		if (count)
+			Cy /= count;
+
+		int shiftX = lround(((double)pDaIn.nWidth / Cx - (double)pDaOut.nWidth / 2) / 2);
+
+		int shiftY = count > 0 ? lround(((double)pDaIn.nHeight / Cy - (double)pDaOut.nHeight / 2) / 2) : 0;
+
+		shift_images(shiftX, shiftY);
 	}
 
 	return pDaOut;

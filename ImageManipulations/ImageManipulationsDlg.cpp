@@ -165,26 +165,14 @@ BOOL CImageManipulationsDlg::OnInitDialog()
 
 	p->SetCheck(true);
 
+	p = (CButton*)GetDlgItem(IDC_IS_CENTER);
+
+	p->SetCheck(true);
+
 	return TRUE;  // возврат значения TRUE, если фокус не передан элементу управления
 }
 
 
-void CImageManipulationsDlg::f()
-{
-	Math::pDaIn.Read("D:/source/repos/Projects/ColourLayersAutoGUI/x64/Release/123/100/SampleCL_Algo_CLResult.png");
-
-	//ImageArea pDa = Math::CalcPalette();
-
-	//pDa.Write("D:/source/repos/Projects/ColourLayersAutoGUI/x64/Release/123/100/SampleCL_Palette.png");
-
-	ImageArea pDa = Math::ScaleImage(2000, 1000, false);
-
-	//Math::pDaIn = pDa;
-
-	//pDa = Math::CalcPalette();
-
-	pDa.Write("D:/source/repos/Projects/ColourLayersAutoGUI/x64/Release/123/100/SampleCL_Algo_CLResult_.png");
-}
 
 void CImageManipulationsDlg::OnSysCommand(UINT nID, LPARAM lParam)
 {
@@ -295,6 +283,7 @@ void CImageManipulationsDlg::SetGroupVisible(int nType, int nCmdShow)
 		GetDlgItem(IDC_STATIC_FORMAT2)->ShowWindow(nCmdShow);
 
 		GetDlgItem(IDC_IS_INDEXED)->ShowWindow(nCmdShow);
+		GetDlgItem(IDC_IS_CENTER)->ShowWindow(nCmdShow);
 		
 	}
 }
@@ -591,6 +580,7 @@ void CImageManipulationsDlg::OnBnClickedCalc()
 		int nHeight = GetDlgItemInt(IDC_HEIGHT_OUT);
 
 		bool bIndexed = ((CButton*)GetDlgItem(IDC_IS_INDEXED))->GetCheck();
+		bool bCenter = ((CButton*)GetDlgItem(IDC_IS_CENTER))->GetCheck();
 
 
 
@@ -601,11 +591,11 @@ void CImageManipulationsDlg::OnBnClickedCalc()
 			return;
 		}
 
-		pDa = Math::ScaleImage(nWidth, nHeight, bIndexed);
+		pDa = Math::ScaleImage(nWidth, nHeight, bIndexed, bCenter);
 
 		SetDlgItemText(IDC_INFO, "Scaling finished");
 	}
-
+	
 
 	if (nType != FUNC_REFORMAT_ALL)
 	{

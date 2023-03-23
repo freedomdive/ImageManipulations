@@ -71,7 +71,7 @@ public:
 
 	static int ReFormatImages(const std::string& sInputDirectory, const std::string& sFormatIn, const std::string& sFormatOut);
 
-	static ImageArea ScaleImage(int nWidth, int nHeight, bool bIndexed);
+	static ImageArea ScaleImage(int nWidth, int nHeight, bool bIndexed, bool bCenter);
 
 	static ImageArea ScaleImageNotIndexed(ImageArea& pDaIn, int nWidth, int nHeight);
 
@@ -82,11 +82,11 @@ public:
 
 	static int GetScaledIndexedPixel(ImageArea& pDa, double fStartX, double fEndX, double fStartY, double fEndY);
 
-	static ImageArea ScaleImageIndexed(ImageArea& pDaIn, const int nWidth, const int nHeight, const double Cx, const double CyOrig, Prophile& pProphile);
+	static ImageArea ScaleImageIndexed(ImageArea& pDaIn, const int nWidth, const int nHeight, const double Cx, const double CyOrig, Prophile& pProphile, bool bCenter);
 
 	static ImageArea FormMiddleIndexes(ImageArea& pDa, int nRad);
 
-	static ImageArea ScaleImageNotIndexed(ImageArea& pDaIn, const int nWidth, const int nHeight, const double Cx, const double CyOrig, Prophile& pProphile);
+	static ImageArea ScaleImageNotIndexed(ImageArea& pDaIn, const int nWidth, const int nHeight, const double Cx, const double CyOrig, Prophile& pProphile, bool bCenter);
 private:
 
 	inline static RGB PALETTE[256];
