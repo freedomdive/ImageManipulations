@@ -578,6 +578,63 @@ int Math::ReFormatImages(const string& sInputDirectory, const std::string& sForm
 	return nCount;
 }
 
+ImageArea Math::RotateImage(int angle, int width, int height)
+{
+	const double rad_angle = -3.141592653589793238462643383279502 * angle / 180;
+
+	const auto cos_phi = cos(rad_angle);
+	const auto sin_phi = sin(rad_angle);
+
+	ImageArea pDaOut;
+
+	pDaOut.nWidth = width;
+	pDaOut.nHeight = height;
+	pDaOut.nPlants = pDaIn.nPlants;
+	pDaOut.nOffset = width * pDaIn.nPlants;
+
+	pDaOut.pBuffer = make_shared<unsigned char[]>(pDaOut.nOffset * pDaOut.nHeight);
+
+	memset(pDaOut.pBuffer.get(), 0, pDaOut.nOffset * pDaOut.nHeight);
+
+
+	const int middle_x = pDaIn.nWidth / 2;
+	const int middle_y = pDaIn.nHeight / 2;
+
+	const int middle_x_new = width / 2;
+	const int middle_y_new = height / 2;
+
+	int shift = 0;
+
+	for (int y = 0; y < pDaIn.nHeight; y++)
+	{
+		for (int x = 0; x < pDaIn.nWidth; x++)
+		{
+			auto coord_y = y - middle_y;
+			auto coord_x = x - middle_x;
+			
+			auto new_coord_y = cos_phi * coord_y + sin_phi * coord_x;
+			auto new_coord_x = -sin_phi * coord_y + cos_phi * coord_x;
+
+			auto real_coord_y = lround(new_coord_y + middle_y_new);
+			auto real_coord_x = lround(new_coord_x + middle_x_new);
+
+
+			if (real_coord_y >= 0 && real_coord_y < pDaOut.nHeight && real_coord_x >= 0 && real_coord_x < pDaOut.nWidth)
+			{
+				for (int i = 0; i < pDaIn.nPlants; i++)
+				{
+					pDaOut.pBuffer[real_coord_y * pDaOut.nOffset + real_coord_x * pDaOut.nPlants + i] = pDaIn.pBuffer[shift + i];
+				}
+			}
+
+			shift += pDaIn.nPlants;
+		}
+	}
+
+
+	return pDaOut;
+}
+
 ImageArea Math::ScaleImage(const int nWidth, const int nHeight, const bool bIndexed, bool bCenter)
 {
 	Prophile pProphile;

@@ -34,7 +34,36 @@ protected:
 	std::string sInputPath;
 	std::string sOutputPath;
 
-	void f();
+	bool bGUI = true;
+
+	struct ConsoleParams
+	{
+		int nType = -1;
+
+		int X = 0;
+
+		int Y = 0;
+
+		int iPlant;
+
+		std::string extFrom = "";
+		std::string extTo = "";
+
+		int nResWidth = 0;
+
+		int nResHeight = 0;
+
+		bool bIndexed = false;
+		bool bCenter = false;
+
+		std::string sPathFrom = "";
+
+		std::string sPathTo = "";
+
+		std::string sProfile = "";
+	};
+
+	ConsoleParams pConsoleParams;
 
 	// Созданные функции схемы сообщений
 	virtual BOOL OnInitDialog();
@@ -47,11 +76,16 @@ public:
 
 	afx_msg void OnCbnSelchangeCombo1();
 
+	void NotGUICalculation(std::string sCommandLine);
 	
+	void SetGUI(bool bGUI) { this->bGUI = bGUI;};
+
 	void ShowGroup(int);
 	void SetGroupVisible(int nType, int);
 	afx_msg void OnBnClickedR();
 	afx_msg void OnBnClickedG();
 	afx_msg void OnBnClickedB();
 	afx_msg void OnBnClickedOpen();
+
 };
+

@@ -75,6 +75,7 @@ public:
 
 	static ImageArea ScaleImageNotIndexed(ImageArea& pDaIn, int nWidth, int nHeight);
 
+	static ImageArea RotateImage(int angle, int width, int height);
 
 	static RGB GetScaledPixel(ImageArea& pDa, double fStartX, double fEndX, double fStartY, double fEndY);
 

@@ -5,7 +5,9 @@
 #include "stdafx.h"
 #include "ImageManipulations.h"
 #include "ImageManipulationsDlg.h"
-
+#include <iostream>
+#include "io.h"
+#include <fcntl.h>
 #ifdef _DEBUG
 #define new DEBUG_NEW
 #endif
@@ -52,8 +54,6 @@ BOOL CImageManipulationsApp::InitInstance()
 	CWinApp::InitInstance();
 
 
-	AfxEnableControlContainer();
-
 	// Создать диспетчер оболочки, в случае, если диалоговое окно содержит
 	// представление дерева оболочки или какие-либо его элементы управления.
 	CShellManager *pShellManager = new CShellManager;
@@ -70,24 +70,41 @@ BOOL CImageManipulationsApp::InitInstance()
 	// например на название организации
 	SetRegistryKey(_T("Локальные приложения, созданные с помощью мастера приложений"));
 
+	std::string sCommandLine =  m_lpCmdLine;
+
+	bool bShowGUI = sCommandLine.length() == 0;
+
 	CImageManipulationsDlg dlg;
 	m_pMainWnd = &dlg;
-	INT_PTR nResponse = dlg.DoModal();
-	if (nResponse == IDOK)
+
+	dlg.SetGUI(bShowGUI);
+
+	if (bShowGUI)
 	{
-		// TODO: Введите код для обработки закрытия диалогового окна
-		//  с помощью кнопки "ОК"
+
+		INT_PTR nResponse = dlg.DoModal();
+		if (nResponse == IDOK)
+		{
+			// TODO: Введите код для обработки закрытия диалогового окна
+			//  с помощью кнопки "ОК"
+		}
+		else if (nResponse == IDCANCEL)
+		{
+			// TODO: Введите код для обработки закрытия диалогового окна
+			//  с помощью кнопки "Отмена"
+		}
+		else if (nResponse == -1)
+		{
+			TRACE(traceAppMsg, 0, "Предупреждение. Не удалось создать диалоговое окно, поэтому работа приложения неожиданно завершена.\n");
+			TRACE(traceAppMsg, 0, "Предупреждение. При использовании элементов управления MFC для диалогового окна невозможно #define _AFX_NO_MFC_CONTROLS_IN_DIALOGS.\n");
+		}
 	}
-	else if (nResponse == IDCANCEL)
+	else
 	{
-		// TODO: Введите код для обработки закрытия диалогового окна
-		//  с помощью кнопки "Отмена"
+		dlg.NotGUICalculation(sCommandLine);
+
 	}
-	else if (nResponse == -1)
-	{
-		TRACE(traceAppMsg, 0, "Предупреждение. Не удалось создать диалоговое окно, поэтому работа приложения неожиданно завершена.\n");
-		TRACE(traceAppMsg, 0, "Предупреждение. При использовании элементов управления MFC для диалогового окна невозможно #define _AFX_NO_MFC_CONTROLS_IN_DIALOGS.\n");
-	}
+
 
 	// Удалить диспетчер оболочки, созданный выше.
 	if (pShellManager != nullptr)

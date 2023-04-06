@@ -5,14 +5,15 @@
 #include "stdafx.h"
 #include "ImageManipulations.h"
 #include "ImageManipulationsDlg.h"
-
+#include <iostream>
 #include <filesystem>
-
+#include <boost/algorithm/string.hpp>
 #include "afxdialogex.h"
 #include <string>
 #include <fstream>
 #include "Params.h"
 using namespace std;
+using namespace boost::algorithm;
 
 #define FUNC_IMAGE_SHIFT			0
 #define FUNC_CHANNELS_CHANGE		1
@@ -21,7 +22,8 @@ using namespace std;
 #define FUNC_CALIBR_INI				4
 #define FUNC_REFORMAT_ALL			5
 #define FUNC_SCALE					6
-#define FUNC_COUNT					7
+#define FUNC_ROTATION				7
+#define FUNC_COUNT					8
 
 
 #ifdef _DEBUG
@@ -146,6 +148,8 @@ BOOL CImageManipulationsDlg::OnInitDialog()
 	pCombo->AddString("Reformat all");
 
 	pCombo->AddString("Scale");
+
+	pCombo->AddString("Rotation");
 	
 	pCombo->SetCurSel(0);
 
@@ -171,6 +175,7 @@ BOOL CImageManipulationsDlg::OnInitDialog()
 
 	return TRUE;  // возврат значения TRUE, если фокус не передан элементу управления
 }
+
 
 
 
@@ -271,6 +276,11 @@ void CImageManipulationsDlg::SetGroupVisible(int nType, int nCmdShow)
 		GetDlgItem(IDC_STATIC_FORMAT)->ShowWindow(nCmdShow);
 		GetDlgItem(IDC_FORMAT_FROM_)->ShowWindow(nCmdShow);
 		GetDlgItem(IDC_FORMAT_TO_)->ShowWindow(nCmdShow);
+		GetDlgItem(IDC_STATIC_1)->ShowWindow(nCmdShow);
+		GetDlgItem(IDC_STATIC_2)->ShowWindow(nCmdShow);
+
+		GetDlgItem(IDC_STATIC_1)->SetWindowText("From");
+		GetDlgItem(IDC_STATIC_2)->SetWindowText("To");
 	}
 	if (nType == FUNC_SCALE)
 	{
@@ -285,6 +295,22 @@ void CImageManipulationsDlg::SetGroupVisible(int nType, int nCmdShow)
 		GetDlgItem(IDC_IS_INDEXED)->ShowWindow(nCmdShow);
 		GetDlgItem(IDC_IS_CENTER)->ShowWindow(nCmdShow);
 		
+	}
+
+	if (nType == FUNC_ROTATION)
+	{
+		GetDlgItem(IDC_FORMAT_FROM_)->ShowWindow(nCmdShow);
+		GetDlgItem(IDC_WIDTH_OUT)->ShowWindow(nCmdShow);
+		GetDlgItem(IDC_HEIGHT_OUT)->ShowWindow(nCmdShow);
+		GetDlgItem(IDC_STATIC_1)->ShowWindow(nCmdShow);
+		GetDlgItem(IDC_STATIC_1)->SetWindowText("Angle");
+
+		if (Math::pDaIn.nOffset)
+		{
+			GetDlgItem(IDC_FORMAT_FROM_)->SetWindowText("0");
+			GetDlgItem(IDC_WIDTH_OUT)->SetWindowText(to_string(Math::pDaIn.nWidth).c_str());
+			GetDlgItem(IDC_HEIGHT_OUT)->SetWindowText(to_string(Math::pDaIn.nHeight).c_str());
+		}
 	}
 }
 
@@ -365,7 +391,7 @@ void CImageManipulationsDlg::OnBnClickedOpen()
 		{
 			sInputPath = FileDialog.GetPathName();
 			SetDlgItemText(IDC_EDIT_INPUT, sInputPath.c_str());
-
+			
 			if (Math::pDaIn.Read(sInputPath.c_str()) != 0)
 			{
 				SetDlgItemText(IDC_INFO, "No such input image");
@@ -397,11 +423,11 @@ void CImageManipulationsDlg::OnBnClickedOpen()
 void CImageManipulationsDlg::OnBnClickedCalc()
 {
 
-	CComboBox* pCombo = static_cast<CComboBox*>(GetDlgItem(IDC_COMBO1));
+	CComboBox* pCombo = bGUI ? static_cast<CComboBox*>(GetDlgItem(IDC_COMBO1)) : nullptr;
 
-	const auto nType = pCombo->GetCurSel();
+	const auto nType = bGUI ? pCombo->GetCurSel() : pConsoleParams.nType;
 
-	if (nType != FUNC_REFORMAT_ALL)
+	if (bGUI && nType != FUNC_REFORMAT_ALL)
 	{
 		CFileDialog FileDialog(FALSE, 0, "");
 
@@ -419,7 +445,8 @@ void CImageManipulationsDlg::OnBnClickedCalc()
 
 	if (bImageValid == false && nType != FUNC_REFORMAT_ALL)
 	{
-		SetDlgItemText(IDC_INFO, "No such input image");
+		if (bGUI)
+			SetDlgItemText(IDC_INFO, "No such input image");
 		return;
 	}
 
@@ -430,132 +457,160 @@ void CImageManipulationsDlg::OnBnClickedCalc()
 	if (nType == FUNC_IMAGE_SHIFT)
 	{
 
-		int shiftX = GetDlgItemInt(IDC_EDIT_X);
-		int shiftY = GetDlgItemInt(IDC_EDIT_Y);
+		int shiftX = bGUI ? GetDlgItemInt(IDC_EDIT_X) : pConsoleParams.X;
+		int shiftY = bGUI ? GetDlgItemInt(IDC_EDIT_Y) : pConsoleParams.Y;
 
 		pDa = Math::ShiftImages(shiftX, shiftY);
 
-		if (shiftX == 0 && shiftY == 0)
-			SetDlgItemText(IDC_INFO, "Zero shift done");
-		else
-			SetDlgItemText(IDC_INFO, "Shift done");
-		
+		if (bGUI)
+		{
+			if (shiftX == 0 && shiftY == 0)
+				SetDlgItemText(IDC_INFO, "Zero shift done");
+			else
+				SetDlgItemText(IDC_INFO, "Shift done");
+		}
 
 	}
 	if (nType == FUNC_CHANNELS_CHANGE)
 	{
 		int nPlant = 0;
 
-		if (IsDlgButtonChecked(IDC_R))
-			nPlant = 0;
-		if (IsDlgButtonChecked(IDC_G))
-			nPlant = 1;
-		if (IsDlgButtonChecked(IDC_B))
-			nPlant = 2;
+		if (bGUI)
+		{
+			if (IsDlgButtonChecked(IDC_R))
+				nPlant = 0;
+			if (IsDlgButtonChecked(IDC_G))
+				nPlant = 1;
+			if (IsDlgButtonChecked(IDC_B))
+				nPlant = 2;
+		}
+		else
+			nPlant = pConsoleParams.iPlant;
 
 		pDa = Math::Make_3_1_Converting(nPlant);
 
 		
 		const int nInPlant = Math::pDaIn.nPlants;
 
-		if (nInPlant == 1)
+		if (bGUI)
 		{
-			SetDlgItemText(IDC_INFO, "Transformation 1 -> 3 done");
-		}
-		if (nInPlant == 3)
-		{
-			if (nPlant == 0)
+			if (nInPlant == 1)
 			{
-				SetDlgItemText(IDC_INFO, "Transformation 3 -> 1 done via Red plant");
+				SetDlgItemText(IDC_INFO, "Transformation 1 -> 3 done");
 			}
-			if (nPlant == 1)
+			if (nInPlant == 3)
 			{
-				SetDlgItemText(IDC_INFO, "Transformation 3 -> 1 done via Green plant");
+				if (nPlant == 0)
+				{
+					SetDlgItemText(IDC_INFO, "Transformation 3 -> 1 done via Red plant");
+				}
+				if (nPlant == 1)
+				{
+					SetDlgItemText(IDC_INFO, "Transformation 3 -> 1 done via Green plant");
+				}
+				if (nPlant == 2)
+				{
+					SetDlgItemText(IDC_INFO, "Transformation 3 -> 1 done via Blue plant");
+				}
 			}
-			if (nPlant == 2)
+			if (nInPlant != 1 && nInPlant != 3)
 			{
-				SetDlgItemText(IDC_INFO, "Transformation 3 -> 1 done via Blue plant");
-			}
-		}
-		if (nInPlant != 1 && nInPlant != 3)
-		{
 
-			sprintf_s(szBuffer, 256, "Transformation error, Input Image Plants = %d", nInPlant);
-			SetDlgItemText(IDC_INFO, szBuffer);
+				sprintf_s(szBuffer, 256, "Transformation error, Input Image Plants = %d", nInPlant);
+				SetDlgItemText(IDC_INFO, szBuffer);
 
-			return;
+				return;
+			}
 		}
-		
 
 	}
 	if (nType == FUNC_ALPHA_CHANNEL_DELETE)
 	{
 		if (Math::pDaIn.nPlants != 4)
 		{
-			sprintf_s(szBuffer, 256, "Image does not have alpha channel, nPlants = %d", Math::pDaIn.nPlants);
-			SetDlgItemText(IDC_INFO, szBuffer);
+			if (bGUI)
+			{
+				sprintf_s(szBuffer, 256, "Image does not have alpha channel, nPlants = %d", Math::pDaIn.nPlants);
+				SetDlgItemText(IDC_INFO, szBuffer);
+			}
 		}
 		else
 		{
 			pDa = Math::AlphaChannelDelete();
 
-			SetDlgItemText(IDC_INFO, "Alpha channel deleting done");
+			if (bGUI)
+			{
+				SetDlgItemText(IDC_INFO, "Alpha channel deleting done");
+			}
 		}
 	}
 	if (nType == FUNC_DRAW_PALETTE)
 	{
 		if (Math::pDaIn.nPlants != 1)
 		{
-			SetDlgItemText(IDC_INFO, "Image must have 1 plant");
-
+			if (bGUI)
+			{
+				SetDlgItemText(IDC_INFO, "Image must have 1 plant");
+			}
 			return;
 		}
 		else
 		{
 			pDa = Math::CalcPalette();
-
-			SetDlgItemText(IDC_INFO, "Palette calculateion done");
+			if (bGUI)
+			{
+				SetDlgItemText(IDC_INFO, "Palette calculateion done");
+			}
 		}
 	}
 	if (nType == FUNC_CALIBR_INI)
 	{
-		if (Params::bInited == false)
+		if (bGUI)
 		{
-			SetDlgItemText(IDC_INFO, "Calibr.Ini not initialized");
+			if (Params::bInited == false)
+			{
+				SetDlgItemText(IDC_INFO, "Calibr.Ini not initialized");
 
-			return;
-		}
-		if (Math::pDaIn.nPlants != 3 && Math::pDaIn.nPlants != 1)
-		{
-			SetDlgItemText(IDC_INFO, "Invalid Plants, need 1 or 3 plants");
+				return;
+			}
+			if (Math::pDaIn.nPlants != 3 && Math::pDaIn.nPlants != 1)
+			{
+				SetDlgItemText(IDC_INFO, "Invalid Plants, need 1 or 3 plants");
 
-			return;
+				return;
+			}
 		}
 
 		pDa = Math::AcceptCalibrIni();
 
-
-		SetDlgItemText(IDC_INFO, "Calibr.Ini accepted");
+		if (bGUI)
+		{
+			SetDlgItemText(IDC_INFO, "Calibr.Ini accepted");
+		}
 	}
 
 	if (nType == FUNC_REFORMAT_ALL)
 	{
 		CString sFormatFrom;
 		CString sFormatTo;
-
-		GetDlgItemText(IDC_FORMAT_FROM_, sFormatFrom);
-		GetDlgItemText(IDC_FORMAT_TO_, sFormatTo);
+		if (bGUI)
+		{
+			GetDlgItemText(IDC_FORMAT_FROM_, sFormatFrom);
+			GetDlgItemText(IDC_FORMAT_TO_, sFormatTo);
+		}
 
 		if (std::filesystem::exists(sInputDirectory) == false)
 		{
-			SetDlgItemText(IDC_INFO, "No such folder");
+			if (bGUI)
+				SetDlgItemText(IDC_INFO, "No such folder");
 
 			return;
 		}
 
 		if (sFormatFrom.GetLength() == 0 || sFormatTo.GetLength() == 0)
 		{
-			SetDlgItemText(IDC_INFO, "Set image formats");
+			if (bGUI)
+				SetDlgItemText(IDC_INFO, "Set image formats");
 
 			return;
 		}
@@ -563,45 +618,264 @@ void CImageManipulationsDlg::OnBnClickedCalc()
 
 		int nCount = Math::ReFormatImages(sInputDirectory, const_cast<char*>(static_cast<LPCSTR>(sFormatFrom)), const_cast<char*>(static_cast<LPCSTR>(sFormatTo)));
 
-		string str = "Reformed ";
+		if (bGUI)
+		{
+			string str = "Reformed ";
 
-		str += to_string(nCount);
+			str += to_string(nCount);
 
-		str += " images";
+			str += " images";
 
-		SetDlgItemText(IDC_INFO, str.c_str());
+			SetDlgItemText(IDC_INFO, str.c_str());
+		}
 	}
 
 	if (nType == FUNC_SCALE)
 	{
 		CString str;
 
-		int nWidth = GetDlgItemInt(IDC_WIDTH_OUT);
-		int nHeight = GetDlgItemInt(IDC_HEIGHT_OUT);
+		int nWidth = bGUI ? GetDlgItemInt(IDC_WIDTH_OUT) : pConsoleParams.nResWidth;
+		int nHeight = bGUI ? GetDlgItemInt(IDC_HEIGHT_OUT) : pConsoleParams.nResHeight;
 
-		bool bIndexed = ((CButton*)GetDlgItem(IDC_IS_INDEXED))->GetCheck();
-		bool bCenter = ((CButton*)GetDlgItem(IDC_IS_CENTER))->GetCheck();
+		bool bIndexed = bGUI ? ((CButton*)GetDlgItem(IDC_IS_INDEXED))->GetCheck() : pConsoleParams.bIndexed;
+		bool bCenter = bGUI ? ((CButton*)GetDlgItem(IDC_IS_CENTER))->GetCheck() : pConsoleParams.bCenter;
 
 
-
-		if (nWidth <= 0 || nHeight <= 0 || Math::pDaIn.nPlants > 1 && bIndexed)
+		if (bGUI)
 		{
-			SetDlgItemText(IDC_INFO, "Incorrect intput values");
+			if (nWidth <= 0 || nHeight <= 0 || Math::pDaIn.nPlants > 1 && bIndexed)
+			{
+				SetDlgItemText(IDC_INFO, "Incorrect intput values");
 
-			return;
+				return;
+			}
 		}
 
-		pDa = Math::ScaleImage(nWidth, nHeight, bIndexed, bCenter);
+		if (nWidth && nHeight)
+			pDa = Math::ScaleImage(nWidth, nHeight, bIndexed, bCenter);
 
-		SetDlgItemText(IDC_INFO, "Scaling finished");
+		if (bGUI)
+		{
+			SetDlgItemText(IDC_INFO, "Scaling finished");
+		}
 	}
 	
+	if (nType == FUNC_ROTATION)
+	{
+		char buf[10];
+
+		GetDlgItem(IDC_FORMAT_FROM_)->GetWindowText(buf, 10);
+
+		auto check_values = [this](char* buf)
+		{
+			if (buf[0] == 0)
+			{
+				if (bGUI)
+					SetDlgItemText(IDC_INFO, "Set not empty values");
+
+				return false;
+			}
+
+			bool valid = true;
+
+			for (int i = 0; i < 10; i++)
+			{
+				if (buf[i] == 0)
+					break;
+
+				if (!(buf[i] == '-' || buf[i] >= '0' && buf[i] <= '9'))
+				{
+					valid = false;
+					break;
+				}
+			}
+
+			if (valid == false)
+			{
+				if (bGUI)
+					SetDlgItemText(IDC_INFO, "Set correct values (numbers)");
+
+				return valid;
+			}
+
+			return valid;
+		};
+
+		
+		if (check_values(buf) == false)
+			return;
+
+		const auto angle = stoi(buf);
+
+		GetDlgItem(IDC_WIDTH_OUT)->GetWindowText(buf, 10);
+
+		if (check_values(buf) == false)
+			return;
+
+		const auto width = stoi(buf);
+
+		GetDlgItem(IDC_HEIGHT_OUT)->GetWindowText(buf, 10);
+
+		if (check_values(buf) == false)
+			return;
+
+		const auto height = stoi(buf);
+
+
+
+		pDa = Math::RotateImage(angle, width, height);
+
+		if (bGUI)
+		{
+			SetDlgItemText(IDC_INFO, "Rotation finished");
+		}
+	}
 
 	if (nType != FUNC_REFORMAT_ALL)
 	{
-		if (pDa.Write(sOutputPath.c_str()) != ImageArea::OK)
+
+		std::filesystem::path path = sOutputPath;
+
+		int nRet = 0;
+
+		if (Math::pDaIn.is_palette())
 		{
-			SetDlgItemText(IDC_INFO, "Error saving image");
+			nRet = pDa.WritePNGRandomPalette(sOutputPath.c_str());
+		}
+		else
+		{
+			nRet = pDa.Write(sOutputPath.c_str());
+		}
+
+		if (nRet != ImageArea::OK)
+		{
+			if (bGUI)
+			{
+				SetDlgItemText(IDC_INFO, "Error saving image");
+			}
 		}
 	}
+}
+
+
+
+void CImageManipulationsDlg::NotGUICalculation(string sCommandLine)
+{
+	vector<string> vRes;
+
+	boost::split(vRes, sCommandLine, [](char c) {return c == ' '; });
+
+	if (vRes.size() % 2)
+		return;
+
+	for (int i = 0; i < vRes.size(); i+=2)
+	{
+		auto& sKey = vRes[i];
+
+		auto& sValue = vRes[i + 1];
+
+		if (to_lower_copy(sKey) == "-type" || to_lower_copy(sKey) == "--type")
+		{
+			if (sValue == "0" || sValue == "Shift")
+			{
+				pConsoleParams.nType = 0;
+			}
+			if (sValue == "1" || sValue == "3->1;1->3")
+			{
+				pConsoleParams.nType = 1;
+			}
+			if (sValue == "2" || sValue == "Alpha_delete")
+			{
+				pConsoleParams.nType = 2;
+			}
+			if (sValue == "3" || sValue == "Palette")
+			{
+				pConsoleParams.nType = 3;
+			}
+			if (sValue == "4" || sValue == "calibr.ini")
+			{
+				pConsoleParams.nType = 4;
+			}
+			if (sValue == "5" || sValue == "Reformat_all")
+			{
+				pConsoleParams.nType = 5;
+			}
+			if (sValue == "6" || sValue == "Scale")
+			{
+				pConsoleParams.nType = 6;
+			}
+		}
+
+		if (to_lower_copy(sKey) == "-x" || to_lower_copy(sKey) == "--x")
+		{
+			pConsoleParams.X = stoi(sValue);
+		}
+		if (to_lower_copy(sKey) == "-y" || to_lower_copy(sKey) == "--y")
+		{
+			pConsoleParams.Y = stoi(sValue);
+		}
+		if (to_lower_copy(sKey) == "-plant" || to_lower_copy(sKey) == "--plant")
+		{
+			pConsoleParams.iPlant = stoi(sValue);
+		}
+		if (to_lower_copy(sKey) == "-extfrom" || to_lower_copy(sKey) == "--extfrom")
+		{
+			pConsoleParams.extFrom = sValue;
+		}
+		if (to_lower_copy(sKey) == "-extto" || to_lower_copy(sKey) == "--extto")
+		{
+			pConsoleParams.extTo = sValue;
+		}
+		if (to_lower_copy(sKey) == "-width" || to_lower_copy(sKey) == "--width")
+		{
+			pConsoleParams.nResWidth = stoi(sValue);
+		}
+		if (to_lower_copy(sKey) == "-height" || to_lower_copy(sKey) == "--height")
+		{
+			pConsoleParams.nResHeight = stoi(sValue);
+		}
+		if (to_lower_copy(sKey) == "-indexed" || to_lower_copy(sKey) == "--indexed")
+		{
+			pConsoleParams.bIndexed = sValue == "1";
+		}
+		if (to_lower_copy(sKey) == "-center" || to_lower_copy(sKey) == "--center")
+		{
+			pConsoleParams.bCenter = sValue == "1";
+		}
+		if (to_lower_copy(sKey) == "-pathfrom" || to_lower_copy(sKey) == "--pathfrom")
+		{
+			pConsoleParams.sPathFrom = sValue;
+		}
+		if (to_lower_copy(sKey) == "-pathto" || to_lower_copy(sKey) == "--pathto")
+		{
+			pConsoleParams.sPathTo = sValue;
+		}
+		if (to_lower_copy(sKey) == "-profile" || to_lower_copy(sKey) == "--profile")
+		{
+			pConsoleParams.sProfile = sValue;
+		}
+	}
+
+
+	sInputDirectory = pConsoleParams.sPathFrom;
+	sInputPath = pConsoleParams.sPathFrom;
+	sOutputPath = pConsoleParams.sPathTo;
+
+	if (pConsoleParams.sProfile.length())
+		Params::GetProfile().sProfilePath = pConsoleParams.sProfile;
+
+	if (pConsoleParams.nType != FUNC_REFORMAT_ALL)
+	{
+		if (Math::pDaIn.Read(sInputPath.c_str()) != 0)
+		{
+			bImageValid = false;
+			return;
+		}
+	}
+
+	bImageValid = true;
+
+
+	OnBnClickedCalc();
+
 }
