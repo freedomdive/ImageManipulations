@@ -560,7 +560,7 @@ ImageArea Math::RotateImage(int angle)
 		int shift = 0;
 		for (int y = 0; y < pDaIn.nHeight; y++)
 		{
-			int shift_new = y * pDaIn.nOffset + (pDaIn.nWidth - 1) * pDaIn.nPlants;
+			int shift_new = (pDaIn.nHeight - 1 - y) * pDaIn.nOffset + (pDaIn.nWidth - 1) * pDaIn.nPlants;
 			for (int x = 0; x < pDaIn.nWidth; x++)
 			{
 				for (int i = 0; i < pDaIn.nPlants; i++)
