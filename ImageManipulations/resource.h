@@ -20,6 +20,8 @@
 #define IDC_G                           1011
 #define IDC_B                           1012
 #define IDC_STATIC_3_1                  1013
+#define IDC_COMBO2                      1014
+#define IDC_C_ANGLE                     1014
 #define IDC_STATIC_F                    1016
 #define IDC_BUTTON1                     1017
 #define IDC_FORMAT_FROM_                1018
@@ -37,6 +39,7 @@
 #define IDC_STATIC_2                    1028
 #define IDC_STATIC_3                    1029
 #define IDC_STATIC_1                    1029
+#define IDC_STATIC_ANGLE                1030
 
 // Next default values for new objects
 // 

@@ -75,56 +75,6 @@ ImageArea Math::Make_3_1_Converting(int nPlant)
 	return pDaOut;
 }
 
-//Потом может быть сделаю отдельный файл для этого, anyway никто кроме меня не будет пользоваться этой утилитой
-void Math::CreatePalette()
-{
-	if (bPaletteCreated)
-		return;
-
-	PALETTE[0] = { 0, 0, 0 };
-	PALETTE[1] = { 79, 1, 36 };
-
-	for (int i = 2; i < 256; i++)
-	{
-		PALETTE[i].R = static_cast<unsigned char>((static_cast<int>(PALETTE[i - 1].R) + 179) % 256);
-		PALETTE[i].G = static_cast<unsigned char>((static_cast<int>(PALETTE[i - 1].G) + 179) % 256);
-		PALETTE[i].B = static_cast<unsigned char>((static_cast<int>(PALETTE[i - 1].B) + 179) % 256);
-	}
-
-	bPaletteCreated = true;
-}
-
-ImageArea Math::CalcPalette()
-{
-	CreatePalette();
-
-	ImageArea pDaOut = pDaIn;
-
-	pDaOut.nPlants = 3;
-	pDaOut.nOffset = pDaIn.nWidth * 3;
-
-	pDaOut.pBuffer = make_shared<unsigned char[]>(pDaOut.nOffset * pDaOut.nHeight);
-
-	int shift = 0;
-	int shift3 = 0;
-
-	for (int y = 0; y < pDaIn.nHeight; y++)
-	{
-		for (int x = 0; x < pDaIn.nWidth; x++)
-		{
-			pDaOut.pBuffer[shift3 + 0] = PALETTE[pDaIn.pBuffer[shift]].R;
-			pDaOut.pBuffer[shift3 + 1] = PALETTE[pDaIn.pBuffer[shift]].G;
-			pDaOut.pBuffer[shift3 + 2] = PALETTE[pDaIn.pBuffer[shift]].B;
-
-			pDaIn.IncX(shift);
-			pDaOut.IncX(shift3);
-		}
-	}
-
-
-	return pDaOut;
-}
-
 ImageArea Math::AlphaChannelDelete()
 {
 	ImageArea DaOut = pDaIn;
@@ -578,59 +528,88 @@ int Math::ReFormatImages(const string& sInputDirectory, const std::string& sForm
 	return nCount;
 }
 
-ImageArea Math::RotateImage(int angle, int width, int height)
+//Поворот только на 0 90 180 270 градусов
+ImageArea Math::RotateImage(int angle)
 {
-	const double rad_angle = -3.141592653589793238462643383279502 * angle / 180;
-
-	const auto cos_phi = cos(rad_angle);
-	const auto sin_phi = sin(rad_angle);
-
 	ImageArea pDaOut;
 
-	pDaOut.nWidth = width;
-	pDaOut.nHeight = height;
+	if (angle == 0)
+	{
+		return pDaIn;
+	}
+
+	if (angle != 90 && angle != 180 && angle != 270)
+	{
+		return pDaIn;
+	}
+	
+	const bool transpone = angle == 90 || angle == 270;
+
+	pDaOut.nWidth = transpone ? pDaIn.nHeight : pDaIn.nWidth;
+	pDaOut.nHeight = transpone ? pDaIn.nWidth : pDaIn.nHeight;
 	pDaOut.nPlants = pDaIn.nPlants;
-	pDaOut.nOffset = width * pDaIn.nPlants;
+	pDaOut.nOffset = pDaOut.nWidth * pDaIn.nPlants;
 
 	pDaOut.pBuffer = make_shared<unsigned char[]>(pDaOut.nOffset * pDaOut.nHeight);
 
 	memset(pDaOut.pBuffer.get(), 0, pDaOut.nOffset * pDaOut.nHeight);
 
-
-	const int middle_x = pDaIn.nWidth / 2;
-	const int middle_y = pDaIn.nHeight / 2;
-
-	const int middle_x_new = width / 2;
-	const int middle_y_new = height / 2;
-
-	int shift = 0;
-
-	for (int y = 0; y < pDaIn.nHeight; y++)
+	if (angle == 180)
 	{
-		for (int x = 0; x < pDaIn.nWidth; x++)
+
+		int shift = 0;
+		for (int y = 0; y < pDaIn.nHeight; y++)
 		{
-			auto coord_y = y - middle_y;
-			auto coord_x = x - middle_x;
-			
-			auto new_coord_y = cos_phi * coord_y + sin_phi * coord_x;
-			auto new_coord_x = -sin_phi * coord_y + cos_phi * coord_x;
-
-			auto real_coord_y = lround(new_coord_y + middle_y_new);
-			auto real_coord_x = lround(new_coord_x + middle_x_new);
-
-
-			if (real_coord_y >= 0 && real_coord_y < pDaOut.nHeight && real_coord_x >= 0 && real_coord_x < pDaOut.nWidth)
+			int shift_new = y * pDaIn.nOffset + (pDaIn.nWidth - 1) * pDaIn.nPlants;
+			for (int x = 0; x < pDaIn.nWidth; x++)
 			{
 				for (int i = 0; i < pDaIn.nPlants; i++)
 				{
-					pDaOut.pBuffer[real_coord_y * pDaOut.nOffset + real_coord_x * pDaOut.nPlants + i] = pDaIn.pBuffer[shift + i];
+					pDaOut.pBuffer[shift_new + i] = pDaIn.pBuffer[shift + i];
 				}
-			}
 
-			shift += pDaIn.nPlants;
+				shift += pDaIn.nPlants;
+				shift_new -= pDaIn.nPlants;
+			}
 		}
 	}
 
+	if (angle == 90)
+	{
+		int shift = 0;
+		for (int x = 0; x < pDaIn.nHeight; x++)
+		{
+			int shift_new = (pDaIn.nWidth - 1) * pDaOut.nOffset + x * pDaOut.nPlants;
+			for (int y = 0; y < pDaIn.nWidth; y++)
+			{
+				for (int i = 0; i < pDaIn.nPlants; i++)
+				{
+					pDaOut.pBuffer[shift_new + i] = pDaIn.pBuffer[shift + i];
+				}
+
+				shift += pDaIn.nPlants;
+				shift_new -= pDaOut.nOffset;
+			}
+		}
+	}
+	if (angle == 270)
+	{
+		int shift = 0;
+		for (int x = 0; x < pDaIn.nHeight; x++)
+		{
+			int shift_new = (pDaIn.nHeight - 1 - x) * pDaOut.nPlants;
+			for (int y = 0; y < pDaIn.nWidth; y++)
+			{
+				for (int i = 0; i < pDaIn.nPlants; i++)
+				{
+					pDaOut.pBuffer[shift_new + i] = pDaIn.pBuffer[shift + i];
+				}
+
+				shift += pDaIn.nPlants;
+				shift_new += pDaOut.nOffset;
+			}
+		}
+	}
 
 	return pDaOut;
 }

@@ -61,8 +61,6 @@ public:
 	
 	static void CreatePalette();
 
-	static ImageArea CalcPalette();
-
 	static ImageArea AcceptCalibrIni();
 
 	static void AcceptCalibrIniOriginal(ImageArea& DaOut);
@@ -75,7 +73,7 @@ public:
 
 	static ImageArea ScaleImageNotIndexed(ImageArea& pDaIn, int nWidth, int nHeight);
 
-	static ImageArea RotateImage(int angle, int width, int height);
+	static ImageArea RotateImage(int angle);
 
 	static RGB GetScaledPixel(ImageArea& pDa, double fStartX, double fEndX, double fStartY, double fEndY);
 
@@ -88,9 +86,5 @@ public:
 	static ImageArea FormMiddleIndexes(ImageArea& pDa, int nRad);
 
 	static ImageArea ScaleImageNotIndexed(ImageArea& pDaIn, const int nWidth, const int nHeight, const double Cx, const double CyOrig, Prophile& pProphile, bool bCenter);
-private:
 
-	inline static RGB PALETTE[256];
-
-	inline static bool bPaletteCreated = false;
 };

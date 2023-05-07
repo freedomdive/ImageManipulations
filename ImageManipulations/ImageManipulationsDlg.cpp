@@ -19,11 +19,12 @@ using namespace boost::algorithm;
 #define FUNC_CHANNELS_CHANGE		1
 #define FUNC_ALPHA_CHANNEL_DELETE	2
 #define FUNC_DRAW_PALETTE			3
-#define FUNC_CALIBR_INI				4
-#define FUNC_REFORMAT_ALL			5
-#define FUNC_SCALE					6
-#define FUNC_ROTATION				7
-#define FUNC_COUNT					8
+#define FUNC_DELETE_PALETTE			4
+#define FUNC_CALIBR_INI				5
+#define FUNC_REFORMAT_ALL			6
+#define FUNC_SCALE					7
+#define FUNC_ROTATION				8
+#define FUNC_COUNT					9
 
 
 #ifdef _DEBUG
@@ -134,14 +135,15 @@ BOOL CImageManipulationsDlg::OnInitDialog()
 
 	CComboBox * pCombo = static_cast<CComboBox *>(GetDlgItem(IDC_COMBO1));
 
-
 	pCombo->AddString("Shift");
 	
 	pCombo->AddString("3->1;1->3");
 	
 	pCombo->AddString("Alpha delete");
 	
-	pCombo->AddString("Palette");
+	pCombo->AddString("Add palette");
+
+	pCombo->AddString("Delete palette");
 
 	pCombo->AddString("calibr.ini");
 
@@ -155,6 +157,16 @@ BOOL CImageManipulationsDlg::OnInitDialog()
 
 	ShowGroup(0);
 
+
+	pCombo = static_cast<CComboBox*>(GetDlgItem(IDC_C_ANGLE));
+
+	pCombo->AddString("0");
+	pCombo->AddString("90");
+	pCombo->AddString("180");
+	pCombo->AddString("270");
+
+	pCombo->SetCurSel(0);
+
 	bImageValid = false;
 
 	CButton* pButtonR = (CButton*)GetDlgItem(IDC_R);
@@ -164,14 +176,6 @@ BOOL CImageManipulationsDlg::OnInitDialog()
 	UpdateData(FALSE);
 	UpdateWindow();
 
-
-	CButton* p = (CButton*)GetDlgItem(IDC_IS_INDEXED);
-
-	p->SetCheck(true);
-
-	p = (CButton*)GetDlgItem(IDC_IS_CENTER);
-
-	p->SetCheck(true);
 
 	return TRUE;  // возврат значения TRUE, если фокус не передан элементу управления
 }
@@ -292,25 +296,17 @@ void CImageManipulationsDlg::SetGroupVisible(int nType, int nCmdShow)
 
 		GetDlgItem(IDC_STATIC_FORMAT2)->ShowWindow(nCmdShow);
 
-		GetDlgItem(IDC_IS_INDEXED)->ShowWindow(nCmdShow);
 		GetDlgItem(IDC_IS_CENTER)->ShowWindow(nCmdShow);
 		
 	}
 
 	if (nType == FUNC_ROTATION)
 	{
-		GetDlgItem(IDC_FORMAT_FROM_)->ShowWindow(nCmdShow);
-		GetDlgItem(IDC_WIDTH_OUT)->ShowWindow(nCmdShow);
-		GetDlgItem(IDC_HEIGHT_OUT)->ShowWindow(nCmdShow);
-		GetDlgItem(IDC_STATIC_1)->ShowWindow(nCmdShow);
-		GetDlgItem(IDC_STATIC_1)->SetWindowText("Angle");
+		GetDlgItem(IDC_C_ANGLE)->ShowWindow(nCmdShow);
+		GetDlgItem(IDC_STATIC_ANGLE)->ShowWindow(nCmdShow);
+		GetDlgItem(IDC_STATIC_ANGLE)->SetWindowText("Angle");
 
-		if (Math::pDaIn.nOffset)
-		{
-			GetDlgItem(IDC_FORMAT_FROM_)->SetWindowText("0");
-			GetDlgItem(IDC_WIDTH_OUT)->SetWindowText(to_string(Math::pDaIn.nWidth).c_str());
-			GetDlgItem(IDC_HEIGHT_OUT)->SetWindowText(to_string(Math::pDaIn.nHeight).c_str());
-		}
+
 	}
 }
 
@@ -544,7 +540,7 @@ void CImageManipulationsDlg::OnBnClickedCalc()
 			}
 		}
 	}
-	if (nType == FUNC_DRAW_PALETTE)
+	if (nType == FUNC_DRAW_PALETTE || nType == FUNC_DELETE_PALETTE)
 	{
 		if (Math::pDaIn.nPlants != 1)
 		{
@@ -556,7 +552,9 @@ void CImageManipulationsDlg::OnBnClickedCalc()
 		}
 		else
 		{
-			pDa = Math::CalcPalette();
+			pDa = Math::pDaIn;
+
+
 			if (bGUI)
 			{
 				SetDlgItemText(IDC_INFO, "Palette calculateion done");
@@ -633,11 +631,11 @@ void CImageManipulationsDlg::OnBnClickedCalc()
 	if (nType == FUNC_SCALE)
 	{
 		CString str;
-
+		
 		int nWidth = bGUI ? GetDlgItemInt(IDC_WIDTH_OUT) : pConsoleParams.nResWidth;
 		int nHeight = bGUI ? GetDlgItemInt(IDC_HEIGHT_OUT) : pConsoleParams.nResHeight;
 
-		bool bIndexed = bGUI ? ((CButton*)GetDlgItem(IDC_IS_INDEXED))->GetCheck() : pConsoleParams.bIndexed;
+		bool bIndexed = Math::pDaIn.is_palette();
 		bool bCenter = bGUI ? ((CButton*)GetDlgItem(IDC_IS_CENTER))->GetCheck() : pConsoleParams.bCenter;
 
 
@@ -662,68 +660,39 @@ void CImageManipulationsDlg::OnBnClickedCalc()
 	
 	if (nType == FUNC_ROTATION)
 	{
-		char buf[10];
+		int angle = 0;
 
-		GetDlgItem(IDC_FORMAT_FROM_)->GetWindowText(buf, 10);
-
-		auto check_values = [this](char* buf)
+		if (bGUI)
 		{
-			if (buf[0] == 0)
+			CComboBox* pCombo = static_cast<CComboBox*>(GetDlgItem(IDC_C_ANGLE));
+
+			int nType = pCombo->GetCurSel();
+
+			switch (nType)
 			{
-				if (bGUI)
-					SetDlgItemText(IDC_INFO, "Set not empty values");
-
-				return false;
-			}
-
-			bool valid = true;
-
-			for (int i = 0; i < 10; i++)
+			case 1:
 			{
-				if (buf[i] == 0)
-					break;
-
-				if (!(buf[i] == '-' || buf[i] >= '0' && buf[i] <= '9'))
-				{
-					valid = false;
-					break;
-				}
+				angle = 90;
+				break;
 			}
-
-			if (valid == false)
+			case 2:
 			{
-				if (bGUI)
-					SetDlgItemText(IDC_INFO, "Set correct values (numbers)");
-
-				return valid;
+				angle = 180;
+				break;
 			}
-
-			return valid;
-		};
-
+			case 3:
+			{
+				angle = 270;
+				break;
+			}
+			}	
+		}
+		else
+		{
+			angle = pConsoleParams.angle;
+		}
 		
-		if (check_values(buf) == false)
-			return;
-
-		const auto angle = stoi(buf);
-
-		GetDlgItem(IDC_WIDTH_OUT)->GetWindowText(buf, 10);
-
-		if (check_values(buf) == false)
-			return;
-
-		const auto width = stoi(buf);
-
-		GetDlgItem(IDC_HEIGHT_OUT)->GetWindowText(buf, 10);
-
-		if (check_values(buf) == false)
-			return;
-
-		const auto height = stoi(buf);
-
-
-
-		pDa = Math::RotateImage(angle, width, height);
+		pDa = Math::RotateImage(angle);
 
 		if (bGUI)
 		{
@@ -738,7 +707,7 @@ void CImageManipulationsDlg::OnBnClickedCalc()
 
 		int nRet = 0;
 
-		if (Math::pDaIn.is_palette())
+		if (Math::pDaIn.is_palette() && nType != FUNC_DELETE_PALETTE || nType == FUNC_DRAW_PALETTE)
 		{
 			nRet = pDa.WritePNGRandomPalette(sOutputPath.c_str());
 		}
@@ -788,21 +757,29 @@ void CImageManipulationsDlg::NotGUICalculation(string sCommandLine)
 			{
 				pConsoleParams.nType = 2;
 			}
-			if (sValue == "3" || sValue == "Palette")
+			if (sValue == "3" || sValue == "Add_palette")
 			{
 				pConsoleParams.nType = 3;
 			}
-			if (sValue == "4" || sValue == "calibr.ini")
+			if (sValue == "4" || sValue == "Delete_palette")
 			{
 				pConsoleParams.nType = 4;
 			}
-			if (sValue == "5" || sValue == "Reformat_all")
+			if (sValue == "5" || sValue == "calibr.ini")
 			{
 				pConsoleParams.nType = 5;
 			}
-			if (sValue == "6" || sValue == "Scale")
+			if (sValue == "6" || sValue == "Reformat_all")
 			{
 				pConsoleParams.nType = 6;
+			}
+			if (sValue == "7" || sValue == "Scale")
+			{
+				pConsoleParams.nType = 7;
+			}
+			if (sValue == "8" || sValue == "Rotate")
+			{
+				pConsoleParams.nType = 8;
 			}
 		}
 
@@ -834,10 +811,6 @@ void CImageManipulationsDlg::NotGUICalculation(string sCommandLine)
 		{
 			pConsoleParams.nResHeight = stoi(sValue);
 		}
-		if (to_lower_copy(sKey) == "-indexed" || to_lower_copy(sKey) == "--indexed")
-		{
-			pConsoleParams.bIndexed = sValue == "1";
-		}
 		if (to_lower_copy(sKey) == "-center" || to_lower_copy(sKey) == "--center")
 		{
 			pConsoleParams.bCenter = sValue == "1";
@@ -853,6 +826,10 @@ void CImageManipulationsDlg::NotGUICalculation(string sCommandLine)
 		if (to_lower_copy(sKey) == "-profile" || to_lower_copy(sKey) == "--profile")
 		{
 			pConsoleParams.sProfile = sValue;
+		}
+		if (to_lower_copy(sKey) == "-angle" || to_lower_copy(sKey) == "--angle")
+		{
+			pConsoleParams.angle = stoi(sValue);
 		}
 	}
 
@@ -877,5 +854,4 @@ void CImageManipulationsDlg::NotGUICalculation(string sCommandLine)
 
 
 	OnBnClickedCalc();
-
 }

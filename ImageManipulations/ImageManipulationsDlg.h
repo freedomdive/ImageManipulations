@@ -53,7 +53,6 @@ protected:
 
 		int nResHeight = 0;
 
-		bool bIndexed = false;
 		bool bCenter = false;
 
 		std::string sPathFrom = "";
@@ -61,6 +60,8 @@ protected:
 		std::string sPathTo = "";
 
 		std::string sProfile = "";
+
+		int angle = 0;
 	};
 
 	ConsoleParams pConsoleParams;
